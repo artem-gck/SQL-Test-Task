@@ -168,3 +168,11 @@ FROM banks
 	JOIN cities ON cities.city_id = branches.city_id
 WHERE cities.city_name = 'Brest';
 GO
+
+SELECT card_number, clients_info.client_info_surname  + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic, cards.card_balance, banks.bank_name
+FROM cards
+	JOIN accounts ON accounts.account_id = cards.card_id
+	JOIN banks ON banks.bank_id = accounts.bank_id
+	JOIN clients ON clients.client_id = accounts.client_id
+	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id;
+GO
