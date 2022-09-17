@@ -7,9 +7,7 @@ GO
 CREATE TABLE social_statuses
 (
 	social_status_id		INT PRIMARY KEY IDENTITY,
-	sotial_status_family	BIT NOT NULL,
-	sotial_status_work		BIT NOT NULL,
-	sotial_status_salary	MONEY NULL
+	sotial_status_name		VARCHAR(50) UNIQUE CHECK(sotial_status_name !='') NOT NULL,
 );
 
 CREATE TABLE clients_info
@@ -24,7 +22,7 @@ CREATE TABLE clients_info
 CREATE TABLE clients
 (
 	client_id				INT PRIMARY KEY IDENTITY,
-	social_status_id		INT UNIQUE NOT NULL,
+	social_status_id		INT NOT NULL,
 	clients_info_id			INT UNIQUE NOT NULL,
 	CONSTRAINT FK_clients_clientsInfo_clientInfoId
 		FOREIGN KEY(clients_info_id) REFERENCES clients_info (client_info_id),
@@ -63,6 +61,7 @@ CREATE TABLE accounts
 	account_id				INT PRIMARY KEY IDENTITY,
 	account_login			VARCHAR(50) UNIQUE NOT NULL,
 	account_password		VARCHAR(50) NOT NULL,
+	account_balance			INT NOT NULL,
 	client_id				INT,
 	bank_id					INT, 
 	UNIQUE(client_id, bank_id),
@@ -95,9 +94,6 @@ CREATE TABLE clients_banks
 );
 GO
 
-ALTER TABLE accounts
-ADD account_balance			INT NULL;
-GO
 
 INSERT INTO cities (city_name)
 	VALUES ('Minsk'),
@@ -122,12 +118,12 @@ INSERT INTO branches (branch_name, branch_created_at, city_id, bank_id)
 		   ('BelAgroProm-Vitebsk', '2015-3-4', 4, 4),
 		   ('Privat-Mohilov', '2017-5-13', 5, 5);
 
-INSERT INTO social_statuses (sotial_status_family, sotial_status_work, sotial_status_salary)
-	VALUES (1, 1, 5000),
-		   (0, 1, 100),
-		   (0, 1, 3000),
-		   (1, 0, NULL),
-		   (1, 1, 900);
+INSERT INTO social_statuses (sotial_status_name)
+	VALUES ('disabled'),
+		   ('unworkable'),
+		   ('pensioner'),
+		   ('employable'),
+		   ('statesman');
 
 INSERT INTO clients_info (client_info_surname, client_info_name, client_info_patronymic, client_info_passport)
 	VALUES ('Hatsko', 'Artem', 'Aliaksandovich', 'HB1234567'),
@@ -143,13 +139,13 @@ INSERT INTO clients (social_status_id, clients_info_id)
 		   (4, 4), 
 		   (5, 5);
 
-INSERT INTO accounts (account_login, account_password, client_id, bank_id)
-	VALUES ('user1', 'user1', 1, 1),
-		   ('user2', 'user2', 2, 2),
-		   ('user3', 'user3', 3, 3),
-		   ('user4', 'user4', 4, 4),
-		   ('user5', 'user5', 5, 5),
-		   ('user6', 'user6', 1, 2);
+INSERT INTO accounts (account_login, account_password, account_balance, client_id, bank_id)
+	VALUES ('user1', 'user1', 6000, 1, 1),
+		   ('user2', 'user2', 6000, 2, 2),
+		   ('user3', 'user3', 6000, 3, 3),
+		   ('user4', 'user4', 6000, 4, 4),
+		   ('user5', 'user5', 6000, 5, 5),
+		   ('user6', 'user6', 6000, 1, 2);
 
 INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
 	VALUES ('1234123412341234', '2023-10-29', 2034, 1),
@@ -166,14 +162,11 @@ INSERT INTO clients_banks (client_id, bank_id)
 		   (5, 5);
 GO
 
-UPDATE accounts
-SET account_balance = 6000;
-GO
-
 INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
 	VALUES ('3456345634566345', '2023-10-29', 3966, 1),
 		   ('9485948594859458', '2022-10-1', 20, 3);
 GO
+
 
 SELECT bank_name
 FROM banks
@@ -195,4 +188,21 @@ FROM accounts
 	JOIN cards ON cards.account_id = accounts.account_id
 GROUP BY accounts.account_login, accounts.account_balance
 HAVING accounts.account_balance != SUM(cards.card_balance);
+GO
+
+SELECT social_statuses.sotial_status_name, COUNT(cards.card_id) AS count_of_cards
+FROM cards
+	JOIN accounts ON accounts.account_id = cards.account_id
+	JOIN clients ON clients.client_id = accounts.client_id
+	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id
+GROUP BY social_statuses.sotial_status_name;
+GO
+
+SELECT social_statuses.sotial_status_name, (SELECT COUNT(cards.card_id) 
+											FROM cards 
+												JOIN accounts ON accounts.account_id = cards.account_id
+												JOIN clients ON clients.client_id = accounts.client_id
+												JOIN social_statuses AS statuses ON social_statuses.social_status_id = clients.social_status_id
+											WHERE social_statuses.sotial_status_name = statuses.sotial_status_name) AS count_of_cards
+FROM social_statuses;
 GO
