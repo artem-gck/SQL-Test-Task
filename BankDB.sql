@@ -161,3 +161,10 @@ INSERT INTO clients_banks (client_id, bank_id)
 		   (4, 4),
 		   (5, 5);
 GO
+
+SELECT bank_name
+FROM banks
+	JOIN branches ON banks.bank_id = branches.bank_id
+	JOIN cities ON cities.city_id = branches.city_id
+WHERE cities.city_name = 'Brest';
+GO
