@@ -1,4 +1,6 @@
-﻿CREATE DATABASE banks_system
+﻿-- Cretaing DB script
+
+CREATE DATABASE banks_system
 GO
 
 USE banks_system
@@ -82,18 +84,19 @@ CREATE TABLE cards
 		FOREIGN KEY(account_id) REFERENCES accounts (account_id),
 );
 
-CREATE TABLE clients_banks
-(
-	client_id				INT NOT NULL,
-	bank_id					INT NOT NULL,
-	UNIQUE(client_id, bank_id),
-	CONSTRAINT FK_clientsBanks_clients_clientId
-		FOREIGN KEY(client_id) REFERENCES clients (client_id),
-	CONSTRAINT FK_clientsBanks_banks_bankId
-		FOREIGN KEY(bank_id) REFERENCES banks (bank_id)
-);
+--CREATE TABLE clients_banks
+--(
+--	client_id				INT NOT NULL,
+--	bank_id					INT NOT NULL,
+--	UNIQUE(client_id, bank_id),
+--	CONSTRAINT FK_clientsBanks_clients_clientId
+--		FOREIGN KEY(client_id) REFERENCES clients (client_id),
+--	CONSTRAINT FK_clientsBanks_banks_bankId
+--		FOREIGN KEY(bank_id) REFERENCES banks (bank_id)
+--);
 GO
 
+-- 0. Inserting data
 
 INSERT INTO cities (city_name)
 	VALUES ('Minsk'),
@@ -157,21 +160,27 @@ INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
 		   ('3456345634566345', '2023-10-29', 3966, 1),
 		   ('9485948594859458', '2022-10-1', 20, 3);
 		   
-INSERT INTO clients_banks (client_id, bank_id)
-	VALUES (1, 1),
-		   (2, 2),
-		   (3, 3),
-		   (4, 4),
-		   (5, 5);
+--INSERT INTO clients_banks (client_id, bank_id)
+--	VALUES (1, 1),
+--		   (2, 2),
+--		   (3, 3),
+--		   (4, 4),
+--		   (5, 5);
 GO
 
+-- 1. List of banks by city
+
+DECLARE @city NVARCHAR(50);
+SET @city = 'Brest';
 
 SELECT bank_name
 FROM banks
 	JOIN branches ON banks.bank_id = branches.bank_id
 	JOIN cities ON cities.city_id = branches.city_id
-WHERE cities.city_name = 'Brest';
+WHERE cities.city_name = @city;
 GO
+
+-- 2. List of cards with name, balance, bank
 
 SELECT card_number, clients_info.client_info_surname  + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic AS client_name, cards.card_balance, banks.bank_name
 FROM cards
@@ -181,12 +190,18 @@ FROM cards
 	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id;
 GO
 
+-- 3. List of accounts with different of balances
+
 SELECT accounts.account_login, accounts.account_balance - SUM(cards.card_balance) AS difference
 FROM accounts
 	JOIN cards ON cards.account_id = accounts.account_id
 GROUP BY accounts.account_login, accounts.account_balance
 HAVING accounts.account_balance != SUM(cards.card_balance);
 GO
+
+-- 4. Count of cards by social statuses
+
+-- Using GROUP BY
 
 SELECT social_statuses.social_status_name, COUNT(cards.card_id) AS count_of_cards
 FROM cards
@@ -196,6 +211,8 @@ FROM cards
 GROUP BY social_statuses.social_status_name;
 GO
 
+-- Using Subquery
+
 SELECT social_statuses.social_status_name, (SELECT COUNT(cards.card_id) 
 											FROM cards 
 												JOIN accounts ON accounts.account_id = cards.account_id
@@ -204,6 +221,8 @@ SELECT social_statuses.social_status_name, (SELECT COUNT(cards.card_id)
 											WHERE social_statuses.social_status_name = statuses.social_status_name) AS count_of_cards
 FROM social_statuses;
 GO
+
+-- 5. Create procedure to add 10$ by social status
 
 CREATE PROCEDURE AddMoneyToAccauntByStatus
 	@social_status_id	INT
@@ -243,6 +262,8 @@ BEGIN
 END;
 GO
 
+-- Check
+
 SELECT accounts.account_login, accounts.account_balance, social_statuses.social_status_name, social_statuses.social_status_id
 FROM accounts
 	JOIN clients ON clients.client_id = accounts.client_id
@@ -264,6 +285,8 @@ FROM accounts
 	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id;
 GO
 
+-- 6. List of free money of accounts
+
 SELECT (clients_info.client_info_surname + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic) AS client_name, 
 	   accounts.account_login, 
 	   (accounts.account_balance - (SELECT SUM(cards.card_balance) 
@@ -275,6 +298,8 @@ FROM accounts
 	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id
 ORDER BY clients_info.client_info_surname;
 GO
+
+-- 7. Create procedure for transfering money from account balance to card balance
 
 CREATE PROCEDURE TransferringTheAmountToTheCard
 	@amount		MONEY,
@@ -323,6 +348,9 @@ BEGIN
 
 	COMMIT TRANSACTION;
 END;
+GO
+
+-- Check
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
@@ -331,16 +359,23 @@ ORDER BY accounts.account_login
 GO
 
 EXEC TransferringTheAmountToTheCard 10, 1, 1;
+GO
 
 EXEC TransferringTheAmountToTheCard 10, 1, 2;
+GO
 
 EXEC TransferringTheAmountToTheCard 10, 1, 1;
+GO
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
 	JOIN cards ON cards.account_id = accounts.account_id
 ORDER BY accounts.account_login
 GO
+
+-- 8. Create triggers for cards and accounts for conrol updating of balances 
+
+-- Trigger for cards table
 
 CREATE TRIGGER ControlBalanceOfCards
 ON cards
@@ -380,6 +415,9 @@ BEGIN
 	FROM INSERTED
 	WHERE cards.card_id = INSERTED.card_id
 END;
+GO
+
+-- Check
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
@@ -390,16 +428,20 @@ GO
 UPDATE cards 
 SET card_balance = card_balance + 100
 WHERE cards.card_id = 2;
+GO
 
 UPDATE cards 
 SET card_balance = card_balance + 5900
 WHERE cards.card_id = 2;
+GO
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
 	JOIN cards ON cards.account_id = accounts.account_id
 ORDER BY accounts.account_login
 GO
+
+-- Trigger for accounts table
 
 CREATE TRIGGER ControlBalanceOfAccounts
 ON accounts
@@ -431,6 +473,9 @@ BEGIN
 	FROM INSERTED
 	WHERE accounts.account_id = INSERTED.account_id
 END;
+GO
+
+-- Check
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
@@ -441,10 +486,12 @@ GO
 UPDATE accounts
 SET account_balance = account_balance + 100
 WHERE accounts.account_id = 1
+GO
 
 UPDATE accounts
 SET account_balance = account_balance - 200
 WHERE accounts.account_id = 1
+GO
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
