@@ -7,7 +7,7 @@ GO
 CREATE TABLE social_statuses
 (
 	social_status_id		INT PRIMARY KEY IDENTITY,
-	sotial_status_name		VARCHAR(50) UNIQUE CHECK(sotial_status_name !='') NOT NULL,
+	social_status_name		VARCHAR(50) UNIQUE CHECK(social_status_name !='') NOT NULL,
 );
 
 CREATE TABLE clients_info
@@ -61,7 +61,7 @@ CREATE TABLE accounts
 	account_id				INT PRIMARY KEY IDENTITY,
 	account_login			VARCHAR(50) UNIQUE NOT NULL,
 	account_password		VARCHAR(50) NOT NULL,
-	account_balance			INT NOT NULL,
+	account_balance			MONEY NOT NULL,
 	client_id				INT,
 	bank_id					INT, 
 	UNIQUE(client_id, bank_id),
@@ -76,7 +76,7 @@ CREATE TABLE cards
 	card_id					INT PRIMARY KEY IDENTITY,
 	card_number				VARCHAR(16) UNIQUE CHECK(card_number !='') NOT NULL,
 	card_valid_date			DATE NOT NULL,
-	card_balance			INT NULL,
+	card_balance			MONEY NULL,
 	account_id				INT NOT NULL,
 	CONSTRAINT FK_cards_accounts_accountId 
 		FOREIGN KEY(account_id) REFERENCES accounts (account_id),
@@ -118,12 +118,13 @@ INSERT INTO branches (branch_name, branch_created_at, city_id, bank_id)
 		   ('BelAgroProm-Vitebsk', '2015-3-4', 4, 4),
 		   ('Privat-Mohilov', '2017-5-13', 5, 5);
 
-INSERT INTO social_statuses (sotial_status_name)
+INSERT INTO social_statuses (social_status_name)
 	VALUES ('disabled'),
 		   ('unworkable'),
 		   ('pensioner'),
 		   ('employable'),
-		   ('statesman');
+		   ('statesman'),
+		   ('bankemployee');
 
 INSERT INTO clients_info (client_info_surname, client_info_name, client_info_patronymic, client_info_passport)
 	VALUES ('Hatsko', 'Artem', 'Aliaksandovich', 'HB1234567'),
@@ -190,19 +191,78 @@ GROUP BY accounts.account_login, accounts.account_balance
 HAVING accounts.account_balance != SUM(cards.card_balance);
 GO
 
-SELECT social_statuses.sotial_status_name, COUNT(cards.card_id) AS count_of_cards
+SELECT social_statuses.social_status_name, COUNT(cards.card_id) AS count_of_cards
 FROM cards
 	JOIN accounts ON accounts.account_id = cards.account_id
 	JOIN clients ON clients.client_id = accounts.client_id
 	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id
-GROUP BY social_statuses.sotial_status_name;
+GROUP BY social_statuses.social_status_name;
 GO
 
-SELECT social_statuses.sotial_status_name, (SELECT COUNT(cards.card_id) 
+SELECT social_statuses.social_status_name, (SELECT COUNT(cards.card_id) 
 											FROM cards 
 												JOIN accounts ON accounts.account_id = cards.account_id
 												JOIN clients ON clients.client_id = accounts.client_id
 												JOIN social_statuses AS statuses ON social_statuses.social_status_id = clients.social_status_id
-											WHERE social_statuses.sotial_status_name = statuses.sotial_status_name) AS count_of_cards
+											WHERE social_statuses.social_status_name = statuses.social_status_name) AS count_of_cards
 FROM social_statuses;
+GO
+
+CREATE PROCEDURE AddMoneyToAccauntByStatus
+	@social_status_id INT
+AS
+BEGIN
+	DECLARE @exitingOfStatus INT;
+	DECLARE @countOfaccounts INT;
+
+	SELECT @exitingOfStatus = COUNT(social_statuses.social_status_id)
+	FROM social_statuses
+	WHERE social_statuses.social_status_id = @social_status_id
+
+	IF @exitingOfStatus = 0
+	BEGIN
+		PRINT 'Invalid Id in parameters.'
+		RETURN;
+	END
+
+	SELECT @countOfaccounts = COUNT(accounts.account_id)
+	FROM social_statuses
+		JOIN clients ON clients.social_status_id = social_statuses.social_status_id
+		JOIN accounts ON accounts.client_id = clients.social_status_id
+	WHERE social_statuses.social_status_id = @social_status_id;
+
+	IF @countOfaccounts = 0
+	BEGIN
+		PRINT 'No accounts with this status.'
+		RETURN;
+	END
+
+	UPDATE accounts
+	SET account_balance = account_balance + 10
+	FROM accounts AS acc
+		JOIN clients ON clients.client_id = acc.client_id
+		JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id 
+	WHERE social_statuses.social_status_id = @social_status_id
+END;
+GO
+
+SELECT accounts.account_login, accounts.account_balance, social_statuses.social_status_name, social_statuses.social_status_id
+FROM accounts
+	JOIN clients ON clients.client_id = accounts.client_id
+	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id;
+GO
+
+EXEC AddMoneyToAccauntByStatus 1;
+GO
+
+EXEC AddMoneyToAccauntByStatus 6;
+GO
+
+EXEC AddMoneyToAccauntByStatus 7;
+GO
+
+SELECT accounts.account_login, accounts.account_balance, social_statuses.social_status_name, social_statuses.social_status_id
+FROM accounts
+	JOIN clients ON clients.client_id = accounts.client_id
+	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id;
 GO
