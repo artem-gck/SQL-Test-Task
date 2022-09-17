@@ -153,7 +153,9 @@ INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
 		   ('4321432143214321', '2024-8-10', 100, 2),
 		   ('5678567856785678', '2022-10-1', 5980, 3),
 		   ('8765876587658765', '2023-12-5', 1234, 4),
-		   ('3456345634563456', '2025-10-29', 4321, 5);
+		   ('3456345634563456', '2025-10-29', 4321, 5),
+		   ('3456345634566345', '2023-10-29', 3966, 1),
+		   ('9485948594859458', '2022-10-1', 20, 3);
 		   
 INSERT INTO clients_banks (client_id, bank_id)
 	VALUES (1, 1),
@@ -161,11 +163,6 @@ INSERT INTO clients_banks (client_id, bank_id)
 		   (3, 3),
 		   (4, 4),
 		   (5, 5);
-GO
-
-INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
-	VALUES ('3456345634566345', '2023-10-29', 3966, 1),
-		   ('9485948594859458', '2022-10-1', 20, 3);
 GO
 
 
@@ -277,3 +274,70 @@ FROM accounts
 	JOIN clients ON clients.client_id = accounts.client_id
 	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id
 ORDER BY clients_info.client_info_surname;
+GO
+
+CREATE PROCEDURE TransferringTheAmountToTheCard
+	@amount MONEY,
+	@account_id INT,
+	@card_id INT
+AS
+BEGIN
+	BEGIN TRANSACTION;
+
+		DECLARE @exitingCardsInAccount INT;
+		DECLARE @amountCardsBalance MONEY;
+		DECLARE @accountBalance MONEY;
+
+		SELECT @exitingCardsInAccount = COUNT(cards.card_id)
+		FROM cards
+			JOIN accounts ON accounts.account_id = cards.account_id
+		WHERE accounts.account_id = @account_id 
+			AND cards.card_id = @card_id;
+
+		IF @exitingCardsInAccount = 0
+		BEGIN
+			PRINT 'No card with this id in that account';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END;
+
+		SELECT @amountCardsBalance = SUM(cards.card_balance)
+		FROM cards
+			JOIN accounts ON accounts.account_id = cards.account_id
+		WHERE accounts.account_id = @account_id; 
+
+		SELECT @accountBalance = accounts.account_balance
+		FROM accounts
+		WHERE accounts.account_id = @account_id;
+
+		IF @accountBalance - @amountCardsBalance < @amount
+		BEGIN
+			PRINT 'No money on account balance to do this operation';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END;
+
+		UPDATE cards
+		SET card_balance = card_balance + @amount
+		WHERE cards.card_id = @card_id;
+
+	COMMIT TRANSACTION;
+END;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
+
+EXEC TransferringTheAmountToTheCard 10, 1, 1;
+
+EXEC TransferringTheAmountToTheCard 10, 1, 2;
+
+EXEC TransferringTheAmountToTheCard 10, 1, 1;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
