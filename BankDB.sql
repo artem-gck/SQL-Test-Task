@@ -266,3 +266,14 @@ FROM accounts
 	JOIN clients ON clients.client_id = accounts.client_id
 	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id;
 GO
+
+SELECT (clients_info.client_info_surname + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic) AS client_name, 
+	   accounts.account_login, 
+	   (accounts.account_balance - (SELECT SUM(cards.card_balance) 
+									FROM cards 
+										JOIN accounts AS acc ON accounts.account_id = cards.account_id 
+									WHERE accounts.account_login = acc.account_login)) AS free_money
+FROM accounts
+	JOIN clients ON clients.client_id = accounts.client_id
+	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id
+ORDER BY clients_info.client_info_surname;
