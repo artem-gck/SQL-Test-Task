@@ -83,17 +83,6 @@ CREATE TABLE cards
 	CONSTRAINT FK_cards_accounts_accountId 
 		FOREIGN KEY(account_id) REFERENCES accounts (account_id),
 );
-
---CREATE TABLE clients_banks
---(
---	client_id				INT NOT NULL,
---	bank_id					INT NOT NULL,
---	UNIQUE(client_id, bank_id),
---	CONSTRAINT FK_clientsBanks_clients_clientId
---		FOREIGN KEY(client_id) REFERENCES clients (client_id),
---	CONSTRAINT FK_clientsBanks_banks_bankId
---		FOREIGN KEY(bank_id) REFERENCES banks (bank_id)
---);
 GO
 
 -- 0. Inserting data
@@ -159,13 +148,6 @@ INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
 		   ('3456345634563456', '2025-10-29', 4321, 5),
 		   ('3456345634566345', '2023-10-29', 3966, 1),
 		   ('9485948594859458', '2022-10-1', 20, 3);
-		   
---INSERT INTO clients_banks (client_id, bank_id)
---	VALUES (1, 1),
---		   (2, 2),
---		   (3, 3),
---		   (4, 4),
---		   (5, 5);
 GO
 
 -- 1. List of banks by city
