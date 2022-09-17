@@ -206,7 +206,7 @@ FROM social_statuses;
 GO
 
 CREATE PROCEDURE AddMoneyToAccauntByStatus
-	@social_status_id INT
+	@social_status_id	INT
 AS
 BEGIN
 	DECLARE @exitingOfStatus INT;
@@ -277,16 +277,16 @@ ORDER BY clients_info.client_info_surname;
 GO
 
 CREATE PROCEDURE TransferringTheAmountToTheCard
-	@amount MONEY,
+	@amount		MONEY,
 	@account_id INT,
-	@card_id INT
+	@card_id	INT
 AS
 BEGIN
 	BEGIN TRANSACTION;
 
-		DECLARE @exitingCardsInAccount INT;
-		DECLARE @amountCardsBalance MONEY;
-		DECLARE @accountBalance MONEY;
+		DECLARE @exitingCardsInAccount	INT;
+		DECLARE @amountCardsBalance		MONEY;
+		DECLARE @accountBalance			MONEY;
 
 		SELECT @exitingCardsInAccount = COUNT(cards.card_id)
 		FROM cards
@@ -335,6 +335,116 @@ EXEC TransferringTheAmountToTheCard 10, 1, 1;
 EXEC TransferringTheAmountToTheCard 10, 1, 2;
 
 EXEC TransferringTheAmountToTheCard 10, 1, 1;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
+
+CREATE TRIGGER ControlBalanceOfCards
+ON cards
+INSTEAD OF UPDATE
+AS
+BEGIN
+	DECLARE @amountCardsBalance		MONEY;
+	DECLARE @accountBalance			MONEY;
+
+	SELECT @amountCardsBalance = SUM(cards.card_balance)
+	FROM accounts
+		JOIN cards ON cards.account_id = accounts.account_id
+		JOIN INSERTED ON INSERTED.account_id = accounts.account_id
+	WHERE accounts.account_id = INSERTED.account_id AND cards.card_id != INSERTED.card_id;
+
+	IF @amountCardsBalance IS NULL
+	BEGIN
+		SET @amountCardsBalance	= 0;
+	END;
+
+	SELECT @amountCardsBalance = @amountCardsBalance + SUM(INSERTED.card_balance)
+	FROM INSERTED
+
+	SELECT @accountBalance = accounts.account_balance
+	FROM INSERTED
+		JOIN accounts ON accounts.account_id = INSERTED.account_id
+	WHERE accounts.account_id = INSERTED.account_id;
+
+	IF @amountCardsBalance > @accountBalance
+	BEGIN
+		PRINT 'Balance of cards more than balance of account';
+		RETURN;
+	END;
+
+	UPDATE cards
+	SET card_balance = INSERTED.card_balance
+	FROM INSERTED
+	WHERE cards.card_id = INSERTED.card_id
+END;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
+
+UPDATE cards 
+SET card_balance = card_balance + 100
+WHERE cards.card_id = 2;
+
+UPDATE cards 
+SET card_balance = card_balance + 5900
+WHERE cards.card_id = 2;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
+
+CREATE TRIGGER ControlBalanceOfAccounts
+ON accounts
+INSTEAD OF UPDATE
+AS
+BEGIN
+	DECLARE @amountCardsBalance		MONEY;
+	DECLARE @accountBalance			MONEY;
+
+	SELECT @amountCardsBalance = SUM(cards.card_balance)
+	FROM accounts
+		JOIN cards ON cards.account_id = accounts.account_id
+		JOIN INSERTED ON INSERTED.account_id = accounts.account_id
+	WHERE accounts.account_id = INSERTED.account_id;
+
+	SELECT @accountBalance = INSERTED.account_balance
+	FROM INSERTED
+		JOIN accounts ON accounts.account_id = INSERTED.account_id
+	WHERE accounts.account_id = INSERTED.account_id;
+
+	IF @amountCardsBalance > @accountBalance
+	BEGIN
+		PRINT 'Balance of acciount less than balance of cards';
+		RETURN;
+	END;
+
+	UPDATE accounts
+	SET account_balance = INSERTED.account_balance
+	FROM INSERTED
+	WHERE accounts.account_id = INSERTED.account_id
+END;
+
+SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+ORDER BY accounts.account_login
+GO
+
+UPDATE accounts
+SET account_balance = account_balance + 100
+WHERE accounts.account_id = 1
+
+UPDATE accounts
+SET account_balance = account_balance - 200
+WHERE accounts.account_id = 1
 
 SELECT accounts.account_id, accounts.account_login, accounts.account_balance, cards.card_id, cards.card_balance
 FROM accounts
