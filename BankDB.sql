@@ -95,6 +95,10 @@ CREATE TABLE clients_banks
 );
 GO
 
+ALTER TABLE accounts
+ADD account_balance			INT NULL;
+GO
+
 INSERT INTO cities (city_name)
 	VALUES ('Minsk'),
 		   ('Brest'),
@@ -162,6 +166,15 @@ INSERT INTO clients_banks (client_id, bank_id)
 		   (5, 5);
 GO
 
+UPDATE accounts
+SET account_balance = 6000;
+GO
+
+INSERT INTO cards (card_number, card_valid_date, card_balance, account_id)
+	VALUES ('3456345634566345', '2023-10-29', 3966, 1),
+		   ('9485948594859458', '2022-10-1', 20, 3);
+GO
+
 SELECT bank_name
 FROM banks
 	JOIN branches ON banks.bank_id = branches.bank_id
@@ -169,10 +182,17 @@ FROM banks
 WHERE cities.city_name = 'Brest';
 GO
 
-SELECT card_number, clients_info.client_info_surname  + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic, cards.card_balance, banks.bank_name
+SELECT card_number, clients_info.client_info_surname  + ' ' + clients_info.client_info_name + ' ' + clients_info.client_info_patronymic AS client_name, cards.card_balance, banks.bank_name
 FROM cards
 	JOIN accounts ON accounts.account_id = cards.card_id
 	JOIN banks ON banks.bank_id = accounts.bank_id
 	JOIN clients ON clients.client_id = accounts.client_id
 	JOIN clients_info ON clients_info.client_info_id = clients.clients_info_id;
+GO
+
+SELECT accounts.account_login, accounts.account_balance - SUM(cards.card_balance) AS difference
+FROM accounts
+	JOIN cards ON cards.account_id = accounts.account_id
+GROUP BY accounts.account_login, accounts.account_balance
+HAVING accounts.account_balance != SUM(cards.card_balance);
 GO
