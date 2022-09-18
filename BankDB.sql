@@ -104,6 +104,7 @@ INSERT INTO banks (bank_name, bank_description)
 
 INSERT INTO branches (branch_name, branch_created_at, city_id, bank_id)
 	VALUES ('Alfa-Minsk', '2015-10-29', 1, 1),
+		   ('Alfa-Minsk-1', '2015-10-29', 1, 1),
 		   ('Alfa-Brest', '2020-1-1', 2, 1),
 		   ('BSB-Grodno', '2018-6-6', 3, 2),
 		   ('Belarus-Brest', '2011-12-12', 2, 3),
@@ -189,7 +190,7 @@ SELECT social_statuses.social_status_name, COUNT(cards.card_id) AS count_of_card
 FROM cards
 	JOIN accounts ON accounts.account_id = cards.account_id
 	JOIN clients ON clients.client_id = accounts.client_id
-	JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id
+	RIGHT JOIN social_statuses ON social_statuses.social_status_id = clients.social_status_id
 GROUP BY social_statuses.social_status_name;
 GO
 
@@ -446,7 +447,7 @@ BEGIN
 
 	IF @amountCardsBalance > @accountBalance
 	BEGIN
-		PRINT 'Balance of acciount less than balance of cards';
+		PRINT 'Balance of account less than balance of cards';
 		RETURN;
 	END;
 
